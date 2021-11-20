@@ -1,13 +1,11 @@
 ---
-title: "Untitled"
+title: "homework 5"
 output: github_document
 ---
 
 ```{r setup, include = FALSE}
 library(tidyverse)
-
 library(rvest)
-
 library(httr)
 
 knitr::opts_chunk$set(
@@ -30,35 +28,115 @@ scale_fill_discrete = scale_fill_viridis_d
 # Problem 1
 
 ```{r}
-homicides_df = read.csv("data/homicide-data.csv")
+homocide_df = read.csv("data/homicide-data.csv",na = c("", "Unknown")) %>% 
+  mutate(
+    city_state = str_c(city, state),
+    resolution = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest" ~ "unsolved",
+      disposition == "Closed by arrest" ~ "solved"
+    )) %>% 
+  relocate(city_state) %>% 
+  filter(city_state != "TulsaAL")
+```
+
+```{r echo=TRUE}
+homocide_df %>% 
+  count(city_state, resolution) %>% 
+  head()
+```
+
+### Let's focus on Baltimore
+```{r}
+baltimore_df =
+  homocide_df %>% 
+  filter(city_state == "BaltimoreMD")
+
+baltimore_summary =
+  baltimore_df %>% 
+    summarize(
+      unsolved = sum(resolution == "unsolved"),
+      n = n()
+    )
+
+baltimore_test = 
+  prop.test(
+    x = baltimore_summary %>% pull(unsolved),
+    n = baltimore_summary %>% pull(n)
+  )
+
+baltimore_test %>% 
+  broom::tidy() %>% 
+  select(estimate, contains("conf"))
+```
+
+```{r}
+prop_test_function = function(city_df){
+  
+  city_summary =
+    city_df %>% 
+      summarize(
+        unsolved = sum(resolution == "unsolved"),
+        n = n()
+      )
+
+  city_test = 
+    prop.test(
+      x = city_summary %>% pull(unsolved),
+      n = city_summary %>% pull(n)
+    )
+  
+  return(city_test)
+}
+
+prop_test_function(baltimore_df)
+```
+
+iterate across all cities
+
+```{r}
+result_df =
+  homocide_df%>% 
+    nest(data = uid:resolution) %>% 
+    mutate(
+      test_results = map(data, prop_test_function),
+      tidy_results = map(test_results, broom::tidy)
+    ) %>% 
+  select(city_state, tidy_results) %>% 
+  unnest(tidy_results) %>% 
+  select(city_state, estimate, contains("conf"))
+```
+
+plot of estimate and confidence interval
+
+```{r}
+result_df %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>%
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
 
-# Problem 2
-Create a tidy dataframe containing data from all participants, including the subject ID, arm, and observations over time:
 
-Start with a dataframe containing all file names; the list.files function will help
+## Problem 2
 
+### import data
 
-
-
-
-
-Iterate over file names and read in data for each subject using purrr::map and saving the result as a new variable in the dataframe
-Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
-Make a spaghetti plot showing observations on each subject over time, and comment on differences between groups.
-
-```{r}
-
-all_df = 
+```{r message=FALSE,warning = FALSE}
+all_df=
   tibble(
-    files = list.files(path="data/longitudinal_study"),
-    path = str_c("data/longitudinal_study/", files)
+    files=list.files("data/longitudinal_study"),
+    path=str_c("data/longitudinal_study/", files)
   ) %>% 
-  mutate(data = map(path, read_csv))%>% 
-  unnest(data)
+  mutate(data=map(path,read_csv)) %>% 
+  unnest()
+```
 
 
+### clean data
+```{r message=FALSE}
 tidy_df=
   all_df %>% 
     select(-path) %>% 
@@ -74,7 +152,11 @@ tidy_df=
     mutate(week=str_replace(week,"week_",""),files=str_c(group,ID),ID=as.numeric(ID),week=as.numeric(week)) %>% 
     rename(subjects=files)%>% 
     select(subjects,everything())
+```
 
+
+### make a spaghetti plot 
+```{r}
 tidy_df%>% 
   ggplot(aes(x=week,y=outcome)) + geom_line(aes(color=subjects)) + facet_grid(~group)
 ```
@@ -83,50 +165,28 @@ As shown in the plot,in the control group,the outcome of 10 subjects do not chan
 
 ## Problem 3
 
-There are two cases to address:
-
-For numeric variables, you should fill in missing values with the mean of non-missing values
-For character variables, you should fill in missing values with "virginica"
-
-Write a function that takes a vector as an argument; replaces missing values using the rules defined above; and returns the resulting vector. Apply this function to the columns of iris_with_missing using a map statement.
 
 ```{r}
 
 set.seed(10)
 
 iris_with_missing = iris %>% 
-    janitor::clean_names() %>% 
     map_df(~replace(.x, sample(1:150, 20), NA)) %>%
-    mutate(species = as.character(species))
+    mutate(Species = as.character(Species)) %>% 
+    janitor::clean_names() 
 
 
 fill_missing=function(x){
-    if(!is.vector(x)){
-      stop("argument should be a vector")
+    if(is.numeric(x)){
+      replace_na(x,mean(x,na.rm=TRUE))
     }
-    replace_na(x,"virginica")
-    replace_na(x,mean(x,na.rm=TRUE))
+  else if(is.character(x)){
+      replace_na(x,"virginica")
+  }
+
 }
 
-
-iris_with_missing %>% 
-  mutate(replace_na(mean(sepal_length,na.rm=TRUE)))
-
-
-mean(iris_with_missing$sepal_length,na.rm=TRUE)
-
-
-output=vector("list",length=5)
-for (i in 1:5){
-output[i]=map(iris_with_missing[i],fill_missing)
-}
-
-
-
-a=c(1,2,3,4,5,NA)
-mean(a)
-fill_missing(a)
-
+iris_without_missing=map_df(iris_with_missing,fill_missing)
 
 ```
 

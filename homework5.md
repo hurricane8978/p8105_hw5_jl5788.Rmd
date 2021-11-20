@@ -1,236 +1,142 @@
-Untitled
+homework 5
 ================
 
 # Problem 1
 
 ``` r
-homicides_df = read.csv("data/homicide-data.csv")
+homocide_df = read.csv("data/homicide-data.csv",na = c("", "Unknown")) %>% 
+  mutate(
+    city_state = str_c(city, state),
+    resolution = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest" ~ "unsolved",
+      disposition == "Closed by arrest" ~ "solved"
+    )) %>% 
+  relocate(city_state) %>% 
+  filter(city_state != "TulsaAL")
 ```
-
-# Problem 2
-
-Create a tidy dataframe containing data from all participants, including
-the subject ID, arm, and observations over time:
-
-Start with a dataframe containing all file names; the list.files
-function will help
-
-Iterate over file names and read in data for each subject using
-purrr::map and saving the result as a new variable in the dataframe Tidy
-the result; manipulate file names to include control arm and subject ID,
-make sure weekly observations are “tidy”, and do any other tidying
-that’s necessary Make a spaghetti plot showing observations on each
-subject over time, and comment on differences between groups.
 
 ``` r
-all_df = 
-  tibble(
-    files = list.files(path="data/longitudinal_study"),
-    path = str_c("data/longitudinal_study/", files)
-  ) %>% 
-  mutate(data = map(path, read_csv))%>% 
-  unnest(data)
+homocide_df %>% 
+  count(city_state, resolution) %>% 
+  head()
 ```
 
-    ## Rows: 1 Columns: 8
+    ##      city_state resolution    n
+    ## 1 AlbuquerqueNM     solved  232
+    ## 2 AlbuquerqueNM   unsolved  146
+    ## 3     AtlantaGA     solved  600
+    ## 4     AtlantaGA   unsolved  373
+    ## 5   BaltimoreMD     solved 1002
+    ## 6   BaltimoreMD   unsolved 1825
 
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
+### Let’s focus on Baltimore
 
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+``` r
+baltimore_df =
+  homocide_df %>% 
+  filter(city_state == "BaltimoreMD")
 
-    ## Rows: 1 Columns: 8
+baltimore_summary =
+  baltimore_df %>% 
+    summarize(
+      unsolved = sum(resolution == "unsolved"),
+      n = n()
+    )
 
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
+baltimore_test = 
+  prop.test(
+    x = baltimore_summary %>% pull(unsolved),
+    n = baltimore_summary %>% pull(n)
+  )
 
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+baltimore_test %>% 
+  broom::tidy() %>% 
+  select(estimate, contains("conf"))
+```
 
-    ## Rows: 1 Columns: 8
+    ## # A tibble: 1 × 3
+    ##   estimate conf.low conf.high
+    ##      <dbl>    <dbl>     <dbl>
+    ## 1    0.646    0.628     0.663
 
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
+``` r
+prop_test_function = function(city_df){
+  
+  city_summary =
+    city_df %>% 
+      summarize(
+        unsolved = sum(resolution == "unsolved"),
+        n = n()
+      )
 
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+  city_test = 
+    prop.test(
+      x = city_summary %>% pull(unsolved),
+      n = city_summary %>% pull(n)
+    )
+  
+  return(city_test)
+}
 
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
+prop_test_function(baltimore_df)
+```
 
     ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
+    ##  1-sample proportions test with continuity correction
     ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+    ## data:  city_summary %>% pull(unsolved) out of city_summary %>% pull(n), null probability 0.5
+    ## X-squared = 239.01, df = 1, p-value < 2.2e-16
+    ## alternative hypothesis: true p is not equal to 0.5
+    ## 95 percent confidence interval:
+    ##  0.6275625 0.6631599
+    ## sample estimates:
+    ##         p 
+    ## 0.6455607
 
-    ## Rows: 1 Columns: 8
+iterate across all cities
 
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
+``` r
+result_df =
+  homocide_df%>% 
+    nest(data = uid:resolution) %>% 
+    mutate(
+      test_results = map(data, prop_test_function),
+      tidy_results = map(test_results, broom::tidy)
+    ) %>% 
+  select(city_state, tidy_results) %>% 
+  unnest(tidy_results) %>% 
+  select(city_state, estimate, contains("conf"))
+```
 
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+plot of estimate and confidence interval
 
-    ## Rows: 1 Columns: 8
+``` r
+result_df %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>%
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
 
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
+<img src="homework5_files/figure-gfm/unnamed-chunk-6-1.png" width="90%" />
 
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+## Problem 2
 
-    ## Rows: 1 Columns: 8
+### import data
 
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
+``` r
+all_df=
+  tibble(
+    files=list.files("data/longitudinal_study"),
+    path=str_c("data/longitudinal_study/", files)
+  ) %>% 
+  mutate(data=map(path,read_csv)) %>% 
+  unnest()
+```
 
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-    ## Rows: 1 Columns: 8
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (8): week_1, week_2, week_3, week_4, week_5, week_6, week_7, week_8
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+### clean data
 
 ``` r
 tidy_df=
@@ -248,12 +154,16 @@ tidy_df=
     mutate(week=str_replace(week,"week_",""),files=str_c(group,ID),ID=as.numeric(ID),week=as.numeric(week)) %>% 
     rename(subjects=files)%>% 
     select(subjects,everything())
+```
 
+### make a spaghetti plot
+
+``` r
 tidy_df%>% 
   ggplot(aes(x=week,y=outcome)) + geom_line(aes(color=subjects)) + facet_grid(~group)
 ```
 
-<img src="homework5_files/figure-gfm/unnamed-chunk-2-1.png" width="90%" />
+<img src="homework5_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
 
 As shown in the plot,in the control group,the outcome of 10 subjects do
 not change a lot after 8 weeks.However,the outcome of 10 subjects in the
@@ -261,79 +171,24 @@ experiment group increase in a roughly simple linear way.
 
 ## Problem 3
 
-There are two cases to address:
-
-For numeric variables, you should fill in missing values with the mean
-of non-missing values For character variables, you should fill in
-missing values with “virginica”
-
-Write a function that takes a vector as an argument; replaces missing
-values using the rules defined above; and returns the resulting vector.
-Apply this function to the columns of iris_with_missing using a map
-statement.
-
 ``` r
 set.seed(10)
 
 iris_with_missing = iris %>% 
-    janitor::clean_names() %>% 
     map_df(~replace(.x, sample(1:150, 20), NA)) %>%
-    mutate(species = as.character(species))
+    mutate(Species = as.character(Species)) %>% 
+    janitor::clean_names() 
 
 
 fill_missing=function(x){
-    if(!is.vector(x)){
-      stop("argument should be a vector")
+    if(is.numeric(x)){
+      replace_na(x,mean(x,na.rm=TRUE))
     }
-    replace_na(x,"virginica")
-    replace_na(x,mean(x,na.rm=TRUE))
+  else if(is.character(x)){
+      replace_na(x,"virginica")
+  }
+
 }
 
-
-iris_with_missing %>% 
-  mutate(replace_na(mean(sepal_length,na.rm=TRUE)))
+iris_without_missing=map_df(iris_with_missing,fill_missing)
 ```
-
-    ## # A tibble: 150 × 6
-    ##    sepal_length sepal_width petal_length petal_width species `replace_na(mean(s…
-    ##           <dbl>       <dbl>        <dbl>       <dbl> <chr>                 <dbl>
-    ##  1          5.1         3.5          1.4         0.2 setosa                 5.82
-    ##  2          4.9         3            1.4         0.2 setosa                 5.82
-    ##  3          4.7         3.2          1.3         0.2 setosa                 5.82
-    ##  4          4.6         3.1          1.5        NA   setosa                 5.82
-    ##  5          5           3.6          1.4         0.2 setosa                 5.82
-    ##  6          5.4         3.9          1.7         0.4 setosa                 5.82
-    ##  7         NA           3.4          1.4         0.3 setosa                 5.82
-    ##  8          5           3.4          1.5         0.2 setosa                 5.82
-    ##  9          4.4         2.9          1.4         0.2 setosa                 5.82
-    ## 10          4.9         3.1         NA           0.1 setosa                 5.82
-    ## # … with 140 more rows
-
-``` r
-mean(iris_with_missing$sepal_length,na.rm=TRUE)
-```
-
-    ## [1] 5.819231
-
-``` r
-output=vector("list",length=5)
-for (i in 1:5){
-output[i]=map(iris_with_missing[i],fill_missing)
-}
-```
-
-    ## Warning in mean.default(x, na.rm = TRUE): argument is not numeric or logical:
-    ## returning NA
-
-``` r
-a=c(1,2,3,4,5,NA)
-mean(a)
-```
-
-    ## [1] NA
-
-``` r
-fill_missing(a)
-```
-
-    ## [1] 1 2 3 4 5 3
