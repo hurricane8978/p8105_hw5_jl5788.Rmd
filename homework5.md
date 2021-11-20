@@ -178,8 +178,9 @@ iris_with_missing = iris %>%
     map_df(~replace(.x, sample(1:150, 20), NA)) %>%
     mutate(Species = as.character(Species)) %>% 
     janitor::clean_names() 
+```
 
-
+``` r
 fill_missing=function(x){
     if(is.numeric(x)){
       replace_na(x,mean(x,na.rm=TRUE))
@@ -191,4 +192,20 @@ fill_missing=function(x){
 }
 
 iris_without_missing=map_df(iris_with_missing,fill_missing)
+iris_without_missing
 ```
+
+    ## # A tibble: 150 × 5
+    ##    sepal_length sepal_width petal_length petal_width species
+    ##           <dbl>       <dbl>        <dbl>       <dbl> <chr>  
+    ##  1         5.1          3.5         1.4         0.2  setosa 
+    ##  2         4.9          3           1.4         0.2  setosa 
+    ##  3         4.7          3.2         1.3         0.2  setosa 
+    ##  4         4.6          3.1         1.5         1.19 setosa 
+    ##  5         5            3.6         1.4         0.2  setosa 
+    ##  6         5.4          3.9         1.7         0.4  setosa 
+    ##  7         5.82         3.4         1.4         0.3  setosa 
+    ##  8         5            3.4         1.5         0.2  setosa 
+    ##  9         4.4          2.9         1.4         0.2  setosa 
+    ## 10         4.9          3.1         3.77        0.1  setosa 
+    ## # … with 140 more rows

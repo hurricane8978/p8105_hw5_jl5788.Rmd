@@ -174,8 +174,9 @@ iris_with_missing = iris %>%
     map_df(~replace(.x, sample(1:150, 20), NA)) %>%
     mutate(Species = as.character(Species)) %>% 
     janitor::clean_names() 
+```
 
-
+```{r}
 fill_missing=function(x){
     if(is.numeric(x)){
       replace_na(x,mean(x,na.rm=TRUE))
@@ -187,6 +188,7 @@ fill_missing=function(x){
 }
 
 iris_without_missing=map_df(iris_with_missing,fill_missing)
-
+iris_without_missing
 ```
+
 
